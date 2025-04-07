@@ -107,7 +107,7 @@ class PageRankClustering(Embedding):
         '''
         Constructs numpy array of vectors with nodes attributes
         '''
-        return np.array([[self.pageranks[v], self.clusterings[v]] for v in range(len(self.graph))])
+        return np.array([[self.pageranks[v] * self.max_node, self.clusterings[v]] for v in range(len(self.graph))])
 
 
 class PageRankInDegree(Embedding):
@@ -141,4 +141,4 @@ class PageRankInDegree(Embedding):
         '''
         Constructs numpy array of vectors with nodes attributes
         '''
-        return np.array([[self.pageranks[v], self.in_degrees[v]] for v in range(self.max_node)])
+        return np.array([[self.pageranks[v] * self.max_node, self.in_degrees[v]] for v in range(self.max_node)])

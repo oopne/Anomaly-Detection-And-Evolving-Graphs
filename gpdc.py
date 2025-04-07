@@ -32,7 +32,7 @@ class GPDC(OutlierMixin, BaseEstimator):
         '''
         :param X: matrix with training points from normal class
         '''
-        self.is_fitted_ = True
+        self._is_fitted = True
 
         X = X if len(X.shape) == 2 else X.reshape((len(X), 1))
         X = validate_data(self, X)
@@ -125,7 +125,7 @@ class DiscreteGPDC(OutlierMixin, BaseEstimator):
         exact_matches = np.array([tuple(row) in self._dataset for row in X])
         result[exact_matches] = 1
 
-        print(exact_matches.sum())
+        # print(exact_matches.sum())
 
         if (~exact_matches).sum() > 0:
             result[~exact_matches] = self._gpdc.predict(X[~exact_matches])

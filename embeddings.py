@@ -43,7 +43,7 @@ class PageRank(Embedding):
         '''
         Constructs numpy array of vectors with nodes attributes
         '''
-        return np.array([self.pageranks[v] for v in range(self.max_node)])
+        return np.array([[self.pageranks[v]] for v in range(self.max_node)])
 
 
 def _add_edge_with_weight(weighted_digraph: nx.DiGraph, u: int, v: int) -> None:

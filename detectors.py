@@ -42,8 +42,8 @@ class GPDCCommunities:
         train_embeddings = embeddings[self.base_community]
         test_embeddings = embeddings[test_nodes]
 
-        train_embeddings = scaler.fit_transform(train_embeddings)
-        test_embeddings = scaler.transform(test_embeddings)
+        # train_embeddings = scaler.fit_transform(train_embeddings)
+        # test_embeddings = scaler.transform(test_embeddings)
         model = DiscreteGPDC(**self.gpdc_kwargs).fit(train_embeddings)
         
         test_results = model.predict(test_embeddings)

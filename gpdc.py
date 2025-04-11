@@ -20,8 +20,9 @@ class GPDC(OutlierMixin, BaseEstimator):
     def __shapes_and_neg_quantiles(self, neg_distances: np.ndarray) -> np.array:
         thresholds = neg_distances[:, -1]
         tails = neg_distances[:, :-1]
-        
-        shapes = np.log(-tails).mean(axis=1) - np.log(-thresholds)
+
+        means = np.apply_along_axis(lambda x: np.log(-x[x != 0]).mean(), 1, tails)
+        shapes = means - np.log(-thresholds)
         neg_quantiles = -sps.genpareto.ppf(1 - 1 / self.tail_size,
                                            c=shapes,
                                            loc=thresholds,
@@ -87,12 +88,12 @@ class DiscreteGPDC(OutlierMixin, BaseEstimator):
     '''
     GPDC modification to work with discrete distributions.
     '''
-    def __init__(self, tail_size: int = 10, alpha: float = 0.01) -> None:
+    def __init__(self, tail_size_ratio: float = 0.025, alpha: float = 0.01) -> None:
         '''
         :param tail_size: the number of upper order statistics to be used
         :param alpha: default threshold to be used for hypothesis tests
         '''
-        self.tail_size = tail_size
+        self.tail_size_ratio = tail_size_ratio
         self.alpha = alpha
 
     def fit(self, X: np.ndarray, y: None = None) -> 'DiscreteGPDC':
@@ -104,8 +105,9 @@ class DiscreteGPDC(OutlierMixin, BaseEstimator):
         X = X if len(X.shape) == 2 else X.reshape((len(X), 1))
         X = validate_data(self, X)
 
-        self._dataset = set(tuple(row) for row in X)
-        self._gpdc = GPDC(self.tail_size, self.alpha).fit(np.array(list(self._dataset)))
+        dataset = set(tuple(row) for row in X)
+        tail_size = max(2, int(len(dataset) * self.tail_size_ratio))
+        self._gpdc = GPDC(tail_size, self.alpha).fit(np.array(list(dataset)))
 
         return self
 
@@ -121,13 +123,4 @@ class DiscreteGPDC(OutlierMixin, BaseEstimator):
         X = X if len(X.shape) == 2 else X.reshape((len(X), 1))
         X = validate_data(self, X, reset=False)
 
-        result = np.zeros(X.shape[0], dtype=int)
-        exact_matches = np.array([tuple(row) in self._dataset for row in X])
-        result[exact_matches] = 1
-
-        # print(exact_matches.sum())
-
-        if (~exact_matches).sum() > 0:
-            result[~exact_matches] = self._gpdc.predict(X[~exact_matches])
-
-        return result
+        return self._gpdc.predict(X)

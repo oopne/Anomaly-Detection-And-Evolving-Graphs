@@ -107,7 +107,7 @@ class PageRankClustering(Embedding):
         '''
         Constructs numpy array of vectors with nodes attributes
         '''
-        return np.array([[self.pageranks[v] * self.max_node, self.clusterings[v]] for v in range(len(self.graph))])
+        return np.array([[self.pageranks[v] * len(self.graph), self.clusterings[v]] for v in range(len(self.graph))])
 
 
 class PageRankInDegree(Embedding):
@@ -142,3 +142,78 @@ class PageRankInDegree(Embedding):
         Constructs numpy array of vectors with nodes attributes
         '''
         return np.array([[self.pageranks[v] * self.max_node, self.in_degrees[v]] for v in range(self.max_node)])
+
+
+class PageRankLogInDegree(Embedding):
+    '''
+    Provides 2D embeddings for evolving graph's nodes, consisting of pageranks and log of in-degrees
+    '''
+    def __init__(self, init_graph: nx.MultiDiGraph, alpha: float = 0.85) -> None:
+        '''
+        Initialises PageRanks and log of in-degrees for nodes of the initial graph.
+        :param init_graph: initial graph
+        :param alpha: damping factor for PageRank
+        '''
+        self.max_node = len(init_graph)
+        self.alpha = alpha
+        self.pageranks = nx.pagerank(init_graph, alpha=self.alpha)
+        self.in_degrees = init_graph.in_degree()
+
+    def update(self, snapshot: nx.MultiDiGraph) -> None:
+        '''
+        Updates nodes attributes for the new snapshot of a graph.
+        :param snapshot: new snapshot of a graph
+        '''
+        for v in range(self.max_node, len(snapshot)):
+            self.pageranks[v] = (1 - self.alpha) / len(snapshot)
+
+        self.max_node = len(snapshot)
+        self.pageranks = nx.pagerank(snapshot, alpha=self.alpha, nstart=self.pageranks)
+        self.in_degrees = snapshot.in_degree()
+
+    def to_numpy(self) -> np.ndarray:
+        '''
+        Constructs numpy array of vectors with nodes attributes
+        '''
+        return np.array([[self.pageranks[v] * self.max_node,
+                          np.log(self.in_degrees[v] + 1)] for v in range(self.max_node)])
+
+
+class PageRankMLM(Embedding):
+    '''
+    Provides 2D embeddings for evolving graph's nodes, consisting of pageranks and MLMs
+    '''
+    def __init__(self, init_graph: nx.MultiDiGraph, alpha: float = 0.85) -> None:
+        '''
+        Initialises PageRanks and MLMs for nodes of the initial graph.
+        :param init_graph: initial graph
+        :param alpha: damping factor for PageRank
+        '''
+        self.max_node = len(init_graph)
+        self.alpha = alpha
+        self.pageranks = nx.pagerank(init_graph, alpha=self.alpha)
+        self.pageranks = {v: pr * self.max_node for v, pr in self.pageranks.items()}
+        self.mlms = {v: self._mlm(init_graph, v) for v in range(self.max_node)}
+
+    def update(self, snapshot: nx.MultiDiGraph) -> None:
+        '''
+        Updates nodes attributes for the new snapshot of a graph.
+        :param snapshot: new snapshot of a graph
+        '''
+        for v in range(self.max_node, len(snapshot)):
+            self.pageranks[v] = (1 - self.alpha) / len(snapshot)
+
+        self.max_node = len(snapshot)
+        self.pageranks = nx.pagerank(snapshot, alpha=self.alpha, nstart=self.pageranks)
+        self.pageranks = {v: pr * self.max_node for v, pr in self.pageranks.items()}
+        self.mlms = {v: self._mlm(snapshot, v) for v in range(self.max_node)}
+
+    def _mlm(self, graph: nx.MultiDiGraph, v: int) -> float:
+        neighbours = [self.alpha * self.pageranks[u] / graph.out_degree(u) for u in graph.predecessors(v)]
+        return max(neighbours + [(1 - self.alpha)])
+
+    def to_numpy(self) -> np.ndarray:
+        '''
+        Constructs numpy array of vectors with nodes attributes
+        '''
+        return np.array([[self.pageranks[v], self.mlms[v]] for v in range(self.max_node)])
